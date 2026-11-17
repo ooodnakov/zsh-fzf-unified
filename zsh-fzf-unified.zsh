@@ -219,6 +219,17 @@ else
   zstyle ':fzf-tab:complete:-command-:*' fzf-preview 'man "$word" 2>/dev/null'
 fi
 
+# Variable values for env/export; function definitions for unset; alias
+# definitions for unalias (cf. fzf's _fzf_comprun recipes).
+zstyle ':fzf-tab:complete:(env|export):*' fzf-preview 'print -r -- "${(P)word}"'
+zstyle ':fzf-tab:complete:unset:*' fzf-preview '
+  if (( ${+functions[$word]} )); then
+    whence -f "$word"
+  else
+    print -r -- "${(P)word}"
+  fi'
+zstyle ':fzf-tab:complete:unalias:*' fzf-preview 'alias "$word"'
+
 # Generic fallback preview for all files and folders.
 zstyle ':fzf-tab:complete:*' fzf-preview '
   # DIRECTORY PREVIEWS
@@ -265,7 +276,16 @@ zstyle ':fzf-tab:complete:*' fzf-preview '
 # Safe safeguard for the fzf history picker: Enter accepts, no run.
 export FZF_CTRL_R_OPTS="--bind 'enter:accept'"
 
-# Yazi-like content preview for the Ctrl-T file widget. The preview script
-# ships with the plugin (this file's directory) and handles directories,
-# images (chafa), archives (7z) and text (bat/cat).
-export FZF_CTRL_T_OPTS="--preview '${0:A:h}/zsh-fzf-unified-preview {}'"
+# Yazi-like content preview for the Ctrl-T file widget, via the bundled
+# zsh-fzf-unified-preview (dirs/git, images, archives, text, binaries).
+# Previews on the right, toggled with Ctrl-/; skip noisy dirs.
+export FZF_CTRL_T_OPTS="--preview '${0:A:h}/zsh-fzf-unified-preview {}' \
+  --preview-window 'right,60%,border-left' \
+  --walker-skip '.git,node_modules,target,dist,build' \
+  --bind 'ctrl-/:change-preview-window(right,60%,border-left|down,60%,border-top|hidden|)'"
+
+# Alt-C (cd) directory preview: git status + contents, previewed below.
+export FZF_ALT_C_OPTS="--preview '${0:A:h}/zsh-fzf-unified-preview {}' \
+  --preview-window 'down,60%,border-top' \
+  --walker-skip '.git,node_modules,target,dist,build' \
+  --bind 'ctrl-/:change-preview-window(down,60%,border-top|hidden|)'"

@@ -1,51 +1,114 @@
 #!/usr/bin/env bash
-# Yazi-like preview for fzf file widgets (Ctrl-T / FZF_CTRL_T_OPTS).
-# Receives the selected path via "$1" (fzf fills it from "{}").
+# Yazi-like preview for fzf file widgets (Ctrl-T / Alt-C).
+# Image pipeline (kitten icat / chafa / imgcat) and binary detection are
+# inspired by junegunn/fzf's bin/fzf-preview.sh.
 #
-#   * directory -> list contents (eza, else coloured ls)
-#   * image     -> chafa (WezTerm/kitty inline images)
+#   * directory -> git status (if inside a repo) + contents (eza/tree/ls)
+#   * symlink   -> resolves and previews the target
+#   * image     -> kitten icat (kitty/ghostty) | chafa | imgcat (iTerm2)
 #   * archive   -> 7z l
-#   * other     -> bat (fallback cat), capped at 500 lines
+#   * text      -> bat (fallback cat), capped at 500 lines
+#   * binary    -> file type + xxd/od hex dump
+#
+# Also accepts FILENAME[:LINENO] (for rg-style previews) to highlight a line.
 set -u
 
-path="${1:-}"
-[[ -n "$path" ]] || exit 0
+arg="${1:-}"
+[[ -n "$arg" ]] || exit 0
+file="${arg/#\~\//$HOME/}"
 
-if [[ -d "$path" ]]; then
+# Optional FILENAME[:LINENO] form: resolve the file and center on the line.
+center=0
+if [[ ! -r $file ]]; then
+  if [[ $file =~ ^(.+):([0-9]+)[:0-9]*[[:space:]]*$ ]] && [[ -r ${BASH_REMATCH[1]} ]]; then
+    file=${BASH_REMATCH[1]}
+    center=${BASH_REMATCH[2]}
+  fi
+fi
+
+# Resolve symlinks and show where they point.
+if [[ -L $file ]]; then
+  target="$(readlink "$file")"
+  if [[ ! -e "$file" ]]; then
+    printf 'Broken symlink: %s -> %s\n' "$(basename "$file")" "$target"
+    exit 0
+  fi
+  printf 'symlink -> %s\n\n' "$target"
+  file="$(realpath "$file" 2>/dev/null || readlink -f "$file" 2>/dev/null || echo "$file")"
+fi
+
+if [[ -d $file ]]; then
+  # Inside a git repo: show a short status/branch summary first.
+  if git -C "$file" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git -C "$file" status --short --branch 2>/dev/null | head -40
+    printf '\n'
+  fi
+
   if command -v eza >/dev/null 2>&1; then
-    eza -1 --color=always --icons=always "$path"
+    eza -1 --color=always --icons=always "$file"
+  elif command -v tree >/dev/null 2>&1; then
+    tree -C -L 1 "$file" 2>/dev/null
   elif [[ "$(uname)" == "Darwin" ]]; then
-    ls -1G "$path"
+    ls -1G "$file"
   else
-    ls -1 --color=always "$path"
+    ls -1 --color=always "$file"
   fi
   exit 0
 fi
 
-if [[ -f "$path" ]]; then
-  mime="$(file --mime-type -b "$path" 2>/dev/null)"
+[[ -r $file ]] || exit 0
 
-  case "$mime" in
-    image/*)
-      if command -v chafa >/dev/null 2>&1; then
-        chafa "$path"
-      else
-        printf 'Image: %s\n(chafa not installed for preview)\n' "$(basename "$path")"
+# Full mime (with charset) for binary detection; bare mime for case matching.
+type="$(file --brief --dereference --mime -- "$file" 2>/dev/null)"
+mime="${type%%;*}"
+
+case "$mime" in
+  image/*)
+    # Preview window dimensions known to fzf, else the live terminal.
+    dim="${FZF_PREVIEW_COLUMNS:-}x${FZF_PREVIEW_LINES:-}"
+    [[ $dim == x ]] && dim="$(stty size < /dev/tty 2>/dev/null | awk '{print $2 "x" $1}')"
+    dim="${dim:-80x24}"
+
+    if { [[ -n ${KITTY_WINDOW_ID:-} ]] || [[ -n ${GHOSTTY_RESOURCES_DIR:-} ]]; } && command -v kitten >/dev/null 2>&1; then
+      # 'memory' transfer is fastest; drop the trailing ANSI reset line that
+      # confuses fzf's scroll-offset indicator, re-appending the reset.
+      kitten icat --clear --transfer-mode=memory --unicode-placeholder --stdin=no --place="${dim}@0x0" "$file" \
+        | sed '$d' | sed $'$s/$/\e[m/'
+    elif command -v chafa >/dev/null 2>&1; then
+      chafa -s "$dim" "$file"
+      echo
+    elif command -v imgcat >/dev/null 2>&1; then
+      imgcat -W "${dim%%x*}" -H "${dim##*x}" "$file"
+    else
+      printf 'Image: %s\n(install chafa, or run inside kitty/ghostty)\n' "$(basename "$file")"
+    fi
+    ;;
+  application/zip|application/x-tar|application/x-bzip2|application/x-gzip|application/gzip|application/x-7z-compressed|application/x-rar)
+    if command -v 7z >/dev/null 2>&1; then
+      7z l "$file" 2>/dev/null
+    else
+      printf 'Archive: %s\n(7z not installed for preview)\n' "$(basename "$file")"
+    fi
+    ;;
+  *)
+    if [[ $type == *binary* ]]; then
+      # Non-text binary: show the type plus a hex dump.
+      file "$file"
+      printf '\n'
+      if command -v xxd >/dev/null 2>&1; then
+        xxd -l 256 "$file"
+      elif command -v od >/dev/null 2>&1; then
+        od -A x -t x1z "$file" 2>/dev/null | head -24
       fi
-      ;;
-    application/zip|application/x-tar|application/x-bzip2|application/x-gzip|application/gzip|application/x-7z-compressed|application/x-rar)
-      if command -v 7z >/dev/null 2>&1; then
-        7z l "$path" 2>/dev/null
-      else
-        printf 'Archive: %s\n(7z not installed for preview)\n' "$(basename "$path")"
-      fi
-      ;;
-    *)
+    else
+      # Text: bat (or batcat), fallback cat.
       if command -v bat >/dev/null 2>&1; then
-        bat --style=numbers --color=always --line-range :500 "$path" 2>/dev/null
+        bat --style="${BAT_STYLE:-numbers}" --color=always --pager=never --line-range :500 --highlight-line="${center:-0}" -- "$file" 2>/dev/null
+      elif command -v batcat >/dev/null 2>&1; then
+        batcat --style="${BAT_STYLE:-numbers}" --color=always --pager=never --line-range :500 --highlight-line="${center:-0}" -- "$file" 2>/dev/null
       else
-        cat "$path" 2>/dev/null
+        cat "$file" 2>/dev/null
       fi
-      ;;
-  esac
-fi
+    fi
+    ;;
+esac

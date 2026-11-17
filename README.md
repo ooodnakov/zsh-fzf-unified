@@ -13,9 +13,14 @@ A single managed source of truth for fzf inside zsh. One plugin that owns:
 - **Hybrid Up/Down arrows** — on a multiline buffer the arrows move the cursor
   between lines (history only at the boundary lines); on a single-line buffer
   Up opens the fzf history picker and Down walks history.
-- **Central `FZF_*` options** — e.g. `FZF_CTRL_R_OPTS=--bind 'enter:accept'`
-  and a Yazi-like content preview for Ctrl-T (dirs via eza/ls, images via
-  chafa, archives via 7z, text via bat/cat).
+- **Central `FZF_*` options** — e.g. `FZF_CTRL_R_OPTS=--bind 'enter:accept'`,
+  a Yazi-like content preview for Ctrl-T, and a directory preview for Alt-C.
+  The shared preview script handles dirs (git status + eza/tree/ls), symlinks,
+  images (kitten icat / chafa / imgcat), archives (7z), text (bat) and binaries
+  (xxd/od) — modeled after `junegunn/fzf`'s `bin/fzf-preview.sh`.
+- **fzf-tab completion previews** — in addition to file/dir/command previews,
+  `env`/`export` show the variable value, `unset` shows the function definition
+  or value, and `unalias` shows the alias definition.
 
 ## Install (Oh My Zsh)
 
