@@ -42,14 +42,16 @@ eval "$(fzf --zsh 2>/dev/null)" || true
 # Ported from zsh-fzf-history-search. Multiline-safe: entries are framed
 # with NUL so embedded newlines belong to the command, not to fzf rows.
 # ---------------------------------------------------------------------
-typeset -g ZSH_FZF_HISTORY_SEARCH_BIND='^r'
-typeset -g ZSH_FZF_HISTORY_SEARCH_FZF_ARGS='+s +m -x -e'
-typeset -g ZSH_FZF_HISTORY_SEARCH_FZF_EXTRA_ARGS='--height=~5'
-typeset -g ZSH_FZF_HISTORY_SEARCH_END_OF_LINE=''
-typeset -g ZSH_FZF_HISTORY_SEARCH_EVENT_NUMBERS=1
-typeset -g ZSH_FZF_HISTORY_SEARCH_DATES_IN_SEARCH=1
-typeset -g ZSH_FZF_HISTORY_SEARCH_REMOVE_DUPLICATES=1
-typeset -g ZSH_FZF_HISTORY_SEARCH_FZF_QUERY_PREFIX=''
+# Behavior defaults. Same `: ${VAR:=default}` pattern as the colors below:
+# values preset BEFORE loading the plugin (e.g. from a theme) win.
+: ${ZSH_FZF_HISTORY_SEARCH_BIND:='^r'}
+: ${ZSH_FZF_HISTORY_SEARCH_FZF_ARGS:='+s +m -x -e'}
+: ${ZSH_FZF_HISTORY_SEARCH_FZF_EXTRA_ARGS:='--height=~5'}
+: ${ZSH_FZF_HISTORY_SEARCH_END_OF_LINE:=''}
+: ${ZSH_FZF_HISTORY_SEARCH_EVENT_NUMBERS:=1}
+: ${ZSH_FZF_HISTORY_SEARCH_DATES_IN_SEARCH:=1}
+: ${ZSH_FZF_HISTORY_SEARCH_REMOVE_DUPLICATES:=1}
+: ${ZSH_FZF_HISTORY_SEARCH_FZF_QUERY_PREFIX:=''}
 
 # Ctrl-R column colors: SGR parameter strings for ESC[...m ('33' yellow,
 # '90' bright black, '1;36' bold cyan, '38;5;208' orange). Preset any of
