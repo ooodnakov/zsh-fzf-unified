@@ -157,6 +157,8 @@ zsh-fzf-unified.plugin.zsh   # OMZ entry point (resolves plugin root)
 zsh-fzf-unified.zsh          # all fzf logic: integration, Ctrl-R, arrows, Ctrl-G, fzf-tab styling
 zsh-fzf-unified-preview      # shared content preview script (dirs/git, images, archives, text, binaries)
 vendor/fzf-tab/              # Aloxaf/fzf-tab pinned to 24105b1
+LICENSE                      # MIT
+THIRD-PARTY.md               # vendored/ported upstream notices
 ```
 
 ## Updating vendored fzf-tab
@@ -174,3 +176,8 @@ curl -sL https://github.com/Aloxaf/fzf-tab/archive/<sha>.tar.gz | \
 - Re-sourcing the plugin (second keymap, manual `source`) is a no-op.
 - Column colors are injected with `--ansi`; escape codes are stripped by fzf
   itself, so clipboard copy (`Ctrl-Y`) and the restored buffer stay clean.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE). Vendored and ported components keep their own
+copyright notices; see [`THIRD-PARTY.md`](THIRD-PARTY.md).
