@@ -1,11 +1,9 @@
-# ooodnakov-fzf
+# zsh-fzf-unified
 
-Single managed source of truth for fzf inside zsh. One plugin that owns:
+A single managed source of truth for fzf inside zsh. One plugin that owns:
 
-- **fzf shell integration** — Ctrl-T (paste file/dir) and Alt-C (cd) from the
-  installed fzf's `key-bindings.zsh`. Located best-effort (Homebrew/Linuxbrew
-  prefix derived from the fzf binary, then distro paths). fzf's `completion.zsh`
-  is deliberately **not** sourced because fzf-tab owns Tab completion.
+- **fzf shell integration** — Ctrl-T (paste file/dir) and Alt-C (cd) via the
+  modern `fzf --zsh` shim (fzf ≥ 0.48). No manual location of the shell files.
 - **fzf history search** — Ctrl-R and the Up-arrow hybrid. Ported from
   `zsh-fzf-history-search`: multiline-safe via NUL-framed entries; event
   numbers and ISO8601 dates shown; duplicates removed.
@@ -15,20 +13,23 @@ Single managed source of truth for fzf inside zsh. One plugin that owns:
 - **Hybrid Up/Down arrows** — on a multiline buffer the arrows move the cursor
   between lines (history only at the boundary lines); on a single-line buffer
   Up opens the fzf history picker and Down walks history.
-- **Central `FZF_*` options** — e.g. `FZF_CTRL_R_OPTS=--bind 'enter:accept'`.
+- **Central `FZF_*` options** — e.g. `FZF_CTRL_R_OPTS=--bind 'enter:accept'`
+  and a Yazi-like content preview for Ctrl-T (dirs via eza/ls, images via
+  chafa, archives via 7z, text via bat/cat).
 
 ## Install (Oh My Zsh)
 
-Put the plugin under `$ZSH_CUSTOM/plugins/ooodnakov-fzf` and add it to
-`plugins=( ... ooodnakov-fzf )` in `.zshrc`. Requires `fzf` on `PATH`; without
+Put the plugin under `$ZSH_CUSTOM/plugins/zsh-fzf-unified` and add it to
+`plugins=( ... zsh-fzf-unified )` in `.zshrc`. Requires `fzf` on `PATH`; without
 it the plugin is a no-op.
 
 ## Layout
 
 ```
-ooodnakov-fzf.plugin.zsh   # OMZ entry point (resolves plugin root)
-ooodnakov-fzf.zsh          # all fzf logic (integration + history + arrows + fzf-tab)
-vendor/fzf-tab/            # Aloxaf/fzf-tab pinned to 24105b1
+zsh-fzf-unified.plugin.zsh   # OMZ entry point (resolves plugin root)
+zsh-fzf-unified.zsh          # all fzf logic (integration + history + arrows + fzf-tab)
+zsh-fzf-unified-preview      # Yazi-like content preview for Ctrl-T
+vendor/fzf-tab/              # Aloxaf/fzf-tab pinned to 24105b1
 ```
 
 ## Updating vendored fzf-tab
@@ -40,7 +41,8 @@ curl -sL https://github.com/Aloxaf/fzf-tab/archive/<sha>.tar.gz | \
 
 ## Notes
 
-- fzf's own Ctrl-R is rebound after `key-bindings.zsh` is sourced so this
-  plugin's history search always wins.
+- `fzf --zsh` binds its own Tab completion and Ctrl-R; fzf-tab (loaded last)
+  rebinds Tab, and this plugin rebinds Ctrl-R in all keymaps, so those two
+  widgets always win.
 - The plugin is a no-op when the `fzf` binary is missing, mirroring upstream
   `zsh-fzf-history-search`.

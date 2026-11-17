@@ -1,70 +1,36 @@
 # =====================================================================
-# ooodnakov-fzf — single managed source of truth for fzf in zsh.
+# zsh-fzf-unified — a single managed source of truth for fzf in zsh.
 #
 # Consolidates, in one plugin:
-#   * fzf shell integration (Ctrl-T / Alt-C) from the installed fzf
+#   * fzf shell integration (Ctrl-T / Alt-C) via the fzf --zsh shim
 #   * fzf history search (Ctrl-R) — ported from zsh-fzf-history-search
 #   * fzf-tab (vendored, pinned to Aloxaf/fzf-tab@24105b1) and ALL of its
 #     styling, previously scattered across .zshrc.d/20-completion.zsh
 #   * the hybrid Up/Down arrow behaviour
 #   * central FZF_* options
 #
-# Loaded as an Oh My Zsh custom plugin from custom/plugins/ooodnakov-fzf.
+# Loaded as an Oh My Zsh custom plugin from custom/plugins/zsh-fzf-unified.
 # =====================================================================
 
 # Nothing to do without the fzf binary.
 (( $+commands[fzf] )) || return 0
 
 # Re-sourcing (second keymap, manual `source`) must be a no-op.
-if (( ${+functions[ooodnakov_fzf_loaded]} )); then
+if (( ${+functions[zfz_loaded]} )); then
   return 0
 fi
-ooodnakov_fzf_loaded=1
+zfz_loaded=1
 
 # ---------------------------------------------------------------------
 # 1. fzf shell integration (Ctrl-T / Alt-C).
 #
-# Best-effort: locate the key-bindings.zsh shipped by the installed fzf
-# and source it. completion.zsh is deliberately NOT sourced — fzf-tab
-# already owns Tab completion. fzf's own Ctrl-R is rebound below so the
-# history-search widget wins.
+# `fzf --zsh` (fzf >= 0.48) is the modern shim: it emits the key bindings
+# and completion without us having to locate the shell files. It also binds
+# its own Tab completion, but fzf-tab (loaded below) rebinds ^I afterwards,
+# so Tab stays with fzf-tab. Ctrl-R is rebound below so the history-search
+# widget wins.
 # ---------------------------------------------------------------------
-{
-  local ooodnakov_fzf_shell="${FZF_SHELL_DIR:-}"
-  local ooodnakov_fzf_bin ooodnakov_fzf_prefix ooodnakov_fzf_cand
-
-  # Homebrew / Linuxbrew layout: <prefix>/bin/fzf, shell files at
-  # <prefix>/opt/fzf/shell. Derive the prefix from the fzf binary so we
-  # never pay for a `brew --prefix` subprocess on every shell start.
-  if [[ -z "$ooodnakov_fzf_shell" && -n "${commands[fzf]}" ]]; then
-    # NOTE: no :A here — resolving the Homebrew symlink into Cellar would
-    # take us past the opt link that actually holds the shell files.
-    ooodnakov_fzf_bin="${commands[fzf]}"
-    ooodnakov_fzf_prefix="${ooodnakov_fzf_bin:h:h}"
-    if [[ -r "$ooodnakov_fzf_prefix/opt/fzf/shell/key-bindings.zsh" ]]; then
-      ooodnakov_fzf_shell="$ooodnakov_fzf_prefix/opt/fzf/shell"
-    fi
-  fi
-
-  # Distro package layouts (Debian/Ubuntu/Arch/macports).
-  if [[ -z "$ooodnakov_fzf_shell" ]]; then
-    for ooodnakov_fzf_cand in \
-      /usr/share/fzf \
-      /usr/share/doc/fzf/examples \
-      /usr/local/share/fzf; do
-      if [[ -r "$ooodnakov_fzf_cand/key-bindings.zsh" ]]; then
-        ooodnakov_fzf_shell="$ooodnakov_fzf_cand"
-        break
-      fi
-    done
-    unset ooodnakov_fzf_cand
-  fi
-
-  if [[ -n "$ooodnakov_fzf_shell" ]]; then
-    source "$ooodnakov_fzf_shell/key-bindings.zsh"
-  fi
-  unset ooodnakov_fzf_shell ooodnakov_fzf_bin ooodnakov_fzf_prefix
-}
+eval "$(fzf --zsh 2>/dev/null)" || true
 
 # ---------------------------------------------------------------------
 # 2. fzf history search (Ctrl-R).
@@ -162,12 +128,12 @@ fzf_history_search() {
 }
 
 zle -N fzf_history_search
-# fzf's key-bindings.zsh binds its own Ctrl-R (in emacs/viins/vicmd);
-# rebind all three so OUR history search always wins.
-for ooodnakov_kmap in emacs viins vicmd; do
-  bindkey -M "$ooodnakov_kmap" '^R' fzf_history_search
+# fzf --zsh binds its own Ctrl-R (in emacs/viins/vicmd); rebind all three
+# so OUR history search always wins.
+for zfz_kmap in emacs viins vicmd; do
+  bindkey -M "$zfz_kmap" '^R' fzf_history_search
 done
-unset ooodnakov_kmap
+unset zfz_kmap
 
 # ---------------------------------------------------------------------
 # 3. Hybrid Up/Down arrows.
@@ -177,28 +143,28 @@ unset ooodnakov_kmap
 #   * Single-line buffer: Up opens the fzf history picker, Down walks
 #     the history.
 # ---------------------------------------------------------------------
-ooodnakov_up() {
+zfz_up() {
   if [[ $BUFFER == *$'\n'* ]]; then
     zle up-line-or-history
   else
     zle fzf_history_search
   fi
 }
-zle -N ooodnakov_up
+zle -N zfz_up
 
-for ooodnakov_keymap in emacs viins vicmd; do
-  bindkey -M "$ooodnakov_keymap" '^[[A' ooodnakov_up
-  bindkey -M "$ooodnakov_keymap" '^[OA' ooodnakov_up
-  bindkey -M "$ooodnakov_keymap" '^[[B' down-line-or-history
-  bindkey -M "$ooodnakov_keymap" '^[OB' down-line-or-history
+for zfz_keymap in emacs viins vicmd; do
+  bindkey -M "$zfz_keymap" '^[[A' zfz_up
+  bindkey -M "$zfz_keymap" '^[OA' zfz_up
+  bindkey -M "$zfz_keymap" '^[[B' down-line-or-history
+  bindkey -M "$zfz_keymap" '^[OB' down-line-or-history
   if [[ -n "${terminfo[kcuu1]}" ]]; then
-    bindkey -M "$ooodnakov_keymap" "${terminfo[kcuu1]}" ooodnakov_up
+    bindkey -M "$zfz_keymap" "${terminfo[kcuu1]}" zfz_up
   fi
   if [[ -n "${terminfo[kcud1]}" ]]; then
-    bindkey -M "$ooodnakov_keymap" "${terminfo[kcud1]}" down-line-or-history
+    bindkey -M "$zfz_keymap" "${terminfo[kcud1]}" down-line-or-history
   fi
 done
-unset ooodnakov_keymap
+unset zfz_keymap
 
 # ---------------------------------------------------------------------
 # 4. fzf-tab (vendored) — fzf-based Tab completion, plus its full styling
@@ -299,10 +265,7 @@ zstyle ':fzf-tab:complete:*' fzf-preview '
 # Safe safeguard for the fzf history picker: Enter accepts, no run.
 export FZF_CTRL_R_OPTS="--bind 'enter:accept'"
 
-# ---------------------------------------------------------------------
-# 5. Central FZF_* options.
-# ---------------------------------------------------------------------
 # Yazi-like content preview for the Ctrl-T file widget. The preview script
 # ships with the plugin (this file's directory) and handles directories,
 # images (chafa), archives (7z) and text (bat/cat).
-export FZF_CTRL_T_OPTS="--preview '${0:A:h}/ooodnakov-fzf-preview {}'"
+export FZF_CTRL_T_OPTS="--preview '${0:A:h}/zsh-fzf-unified-preview {}'"
