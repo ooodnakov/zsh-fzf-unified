@@ -115,24 +115,26 @@ fzf_history_search() {
         fi
         display+="${command}"
 
-        # event-number<TAB>display text<NUL>
-        printf '%s\0' "${event}"$'\t'"${display}"
+        # event-number display text<NUL>  (single space, not TAB — a terminal
+        # would expand the TAB into a wide gap before the date).
+        printf '%s\0' "${event} ${display}"
       done
     } |
       fzf \
         ${=ZSH_FZF_HISTORY_SEARCH_FZF_ARGS} \
         ${=ZSH_FZF_HISTORY_SEARCH_FZF_EXTRA_ARGS} \
         --read0 \
-        --bind "ctrl-y:execute-silent(printf %s '{}' | awk -F'\t' '{print \$2}' | cut -d' ' -f3- | $zfz_copy_cmd)+abort" \
+        --bind "ctrl-y:execute-silent(printf %s '{}' | cut -d' ' -f4- | $zfz_copy_cmd)+abort" \
         "${query_args[@]}"
   )"
 
   local ret=$?
 
   if [[ -n "$selected" ]]; then
-    # fzf returns event-number<TAB>...; let ZLE restore the original
-    # history event so multiline commands come back exactly.
-    selected_event="${selected%%$'\t'*}"
+    # fzf returns "event-number date time command"; the event is the first
+    # space-delimited field. Let ZLE restore the original history event so
+    # multiline commands come back exactly.
+    selected_event="${selected%% *}"
     if [[ "$selected_event" == <-> ]]; then
       zle vi-fetch-history -n "$selected_event"
       if [[ -n "$ZSH_FZF_HISTORY_SEARCH_END_OF_LINE" ]]; then
