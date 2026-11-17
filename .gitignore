@@ -1,0 +1,7 @@
+# Oh My Zsh / zsh plugin source
+*.zwc
+*.zwc.old
+
+# Editors
+.DS_Store
+*.swp
