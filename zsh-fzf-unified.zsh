@@ -21,6 +21,10 @@ if (( ${+functions[zfz_loaded]} )); then
 fi
 zfz_loaded=1
 
+# Plugin root. $0 is only the plugin file at load time; inside widgets/functions
+# it becomes the function name, so capture the directory here and reuse it.
+typeset -g zfz_home="${0:A:h}"
+
 # ---------------------------------------------------------------------
 # 1. fzf shell integration (Ctrl-T / Alt-C).
 #
@@ -184,7 +188,7 @@ unset zfz_keymap
 # 4. fzf-tab (vendored) — fzf-based Tab completion, plus its full styling
 #    (previously maintained in .zshrc.d/20-completion.zsh).
 # ---------------------------------------------------------------------
-source "${0:A:h}/vendor/fzf-tab/fzf-tab.plugin.zsh"
+source "$zfz_home/vendor/fzf-tab/fzf-tab.plugin.zsh"
 
 zstyle ':fzf-tab:*' switch-group '<' '>'
 zstyle ':fzf-tab:*' fzf-bindings-default tab:down,btab:up,change:top,alt-s:toggle,bspace:backward-delete-char/eof,ctrl-h:backward-delete-char/eof
@@ -308,13 +312,13 @@ export FZF_CTRL_R_OPTS="--bind 'enter:accept'"
 # Yazi-like content preview for the Ctrl-T file widget, via the bundled
 # zsh-fzf-unified-preview (dirs/git, images, archives, text, binaries).
 # Previews on the right, toggled with Ctrl-/; skip noisy dirs.
-export FZF_CTRL_T_OPTS="--preview '${0:A:h}/zsh-fzf-unified-preview {}' \
+export FZF_CTRL_T_OPTS="--preview '$zfz_home/zsh-fzf-unified-preview {}' \
   --preview-window 'right,60%,border-left' \
   --walker-skip '.git,node_modules,target,dist,build' \
   --bind 'ctrl-/:change-preview-window(right,60%,border-left|down,60%,border-top|hidden|)'"
 
 # Alt-C (cd) directory preview: git status + contents, previewed below.
-export FZF_ALT_C_OPTS="--preview '${0:A:h}/zsh-fzf-unified-preview {}' \
+export FZF_ALT_C_OPTS="--preview '$zfz_home/zsh-fzf-unified-preview {}' \
   --preview-window 'down,60%,border-top' \
   --walker-skip '.git,node_modules,target,dist,build' \
   --bind 'ctrl-/:change-preview-window(down,60%,border-top|hidden|)'"
@@ -342,7 +346,7 @@ zfz_rg() {
   local RG_PREFIX INITIAL_QUERY rg_preview sel ret file line
   RG_PREFIX="${FZF_RG_COMMAND:-rg --column --line-number --no-heading --color=always --smart-case --hidden --glob '!.git/*'}"
   INITIAL_QUERY="${LBUFFER//$'\n'/ }"
-  rg_preview="${0:A:h}/zsh-fzf-unified-preview"
+  rg_preview="$zfz_home/zsh-fzf-unified-preview"
 
   sel="$(
     fzf --ansi --disabled --query "$INITIAL_QUERY" \
