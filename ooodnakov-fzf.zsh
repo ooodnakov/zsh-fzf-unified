@@ -37,7 +37,9 @@ ooodnakov_fzf_loaded=1
   # <prefix>/opt/fzf/shell. Derive the prefix from the fzf binary so we
   # never pay for a `brew --prefix` subprocess on every shell start.
   if [[ -z "$ooodnakov_fzf_shell" && -n "${commands[fzf]}" ]]; then
-    ooodnakov_fzf_bin="${commands[fzf]:A}"
+    # NOTE: no :A here — resolving the Homebrew symlink into Cellar would
+    # take us past the opt link that actually holds the shell files.
+    ooodnakov_fzf_bin="${commands[fzf]}"
     ooodnakov_fzf_prefix="${ooodnakov_fzf_bin:h:h}"
     if [[ -r "$ooodnakov_fzf_prefix/opt/fzf/shell/key-bindings.zsh" ]]; then
       ooodnakov_fzf_shell="$ooodnakov_fzf_prefix/opt/fzf/shell"
@@ -160,9 +162,12 @@ fzf_history_search() {
 }
 
 zle -N fzf_history_search
-# Rebinding after the fzf key-bindings.zsh source above guarantees OUR
-# Ctrl-R wins.
-bindkey '^R' fzf_history_search
+# fzf's key-bindings.zsh binds its own Ctrl-R (in emacs/viins/vicmd);
+# rebind all three so OUR history search always wins.
+for ooodnakov_kmap in emacs viins vicmd; do
+  bindkey -M "$ooodnakov_kmap" '^R' fzf_history_search
+done
+unset ooodnakov_kmap
 
 # ---------------------------------------------------------------------
 # 3. Hybrid Up/Down arrows.
