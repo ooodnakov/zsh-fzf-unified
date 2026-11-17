@@ -1,0 +1,4 @@
+# The plugin and its preview script are consumed by zsh/bash, where a trailing
+# CR is data, not whitespace: CRLF checkout breaks `zsh-fzf-unified-preview`
+# and corrupts escape-sequence handling. Force LF everywhere.
+* text=auto eol=lf

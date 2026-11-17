@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: syntax + load
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install zsh and shellcheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq zsh shellcheck
+
+      - name: Syntax
+        run: |
+          zsh -n zsh-fzf-unified.zsh
+          zsh -n zsh-fzf-unified.plugin.zsh
+          bash -n zsh-fzf-unified-preview
+
+      - name: shellcheck
+        run: shellcheck --severity=warning --shell=bash zsh-fzf-unified-preview
+
+      - name: Load as an Oh My Zsh plugin
+        run: |
+          stub=$(mktemp -d)
+          printf '#!/bin/sh\nexit 0\n' > "$stub/fzf"
+          chmod +x "$stub/fzf"
+          PATH="$stub:$PATH" zsh -f -c '
+            source ./zsh-fzf-unified.plugin.zsh
+            (( $+zfz_loaded )) || { print -u2 "plugin did not load"; exit 1 }
+            n=${#${(k)widgets[(I)zfz*]}}
+            (( n > 0 )) || { print -u2 "no ZLE widgets registered"; exit 1 }
+            source ./zsh-fzf-unified.plugin.zsh   # must be a no-op
+            (( ${#${(k)widgets[(I)zfz*]}} == n )) || {
+              print -u2 "re-source was not a no-op"; exit 1
+            }
+            print -r -- "widgets registered: $n"
+          '

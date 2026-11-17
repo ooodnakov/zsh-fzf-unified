@@ -1,5 +1,9 @@
 # zsh-fzf-unified
 
+[![ci](https://github.com/ooodnakov/zsh-fzf-unified/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ooodnakov/zsh-fzf-unified/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![fzf >= 0.48](https://img.shields.io/badge/fzf-%E2%89%A5%200.48-brightgreen.svg)](https://github.com/junegunn/fzf)
+
 A single managed source of truth for everything fzf inside zsh: shell
 integration (Ctrl-T / Alt-C), history search (Ctrl-R), ripgrep live grep
 (Ctrl-G), Tab completion (fzf-tab, vendored) and the Up/Down arrow policy —
