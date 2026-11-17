@@ -51,6 +51,26 @@ typeset -g ZSH_FZF_HISTORY_SEARCH_DATES_IN_SEARCH=1
 typeset -g ZSH_FZF_HISTORY_SEARCH_REMOVE_DUPLICATES=1
 typeset -g ZSH_FZF_HISTORY_SEARCH_FZF_QUERY_PREFIX=''
 
+# Ctrl-R column colors: SGR parameter strings for ESC[...m ('33' yellow,
+# '90' bright black, '1;36' bold cyan, '38;5;208' orange). Preset any of
+# these BEFORE loading the plugin (e.g. from a theme) to override the
+# defaults; set one to '' to leave that field uncolored.
+: ${ZFZ_HISTORY_COLOR_EVENT:=33}
+: ${ZFZ_HISTORY_COLOR_DATE:=90}
+: ${ZFZ_HISTORY_COLOR_TIME:=36}
+: ${ZFZ_HISTORY_COLOR_COMMAND:=}
+
+# Set REPLY to $2, wrapped in the SGR sequence $1 when non-empty. Kept
+# space-free by contract: rows are split on spaces downstream, so a colored
+# field must never introduce one.
+zfz_color() {
+  if [[ -n "$1" ]]; then
+    REPLY=$'\e['"${1}m$2"$'\e[0m'
+  else
+    REPLY="$2"
+  fi
+}
+
 fzf_history_search() {
   setopt extendedglob
 
@@ -69,8 +89,10 @@ fzf_history_search() {
     )
   fi
 
-  # Ctrl-Y copies the command (everything after the "event<TAB>date time "
+  # Ctrl-Y copies the command (everything after the "event date time "
   # prefix) to the clipboard and closes the picker without inserting it.
+  # fzf --ansi strips the escape codes from '{}' and from the selected
+  # line, so the space-separated field layout stays intact downstream.
   local zfz_copy_cmd
   if [[ "$OSTYPE" == darwin* ]]; then
     zfz_copy_cmd='pbcopy'
@@ -82,48 +104,52 @@ fzf_history_search() {
     zfz_copy_cmd='cat >/dev/null'
   fi
 
+  # Inside the substitution: keep NO comment lines. In an interactive shell
+  # without interactive_comments (e.g. zsh -f -i), the runtime re-parse of
+  # this text treats '#' as an extendedglob word and dies with
+  # "bad pattern: #". The pipeline: fc -li gives ordering, event numbers and
+  # the ISO8601 timestamp, but its command text is unsafe for multiline
+  # entries; the complete command comes from $history instead. The loop
+  # strips a SHARE_HISTORY "*" suffix from foreign event numbers and skips
+  # fc continuation lines (non-numeric / non-date / non-time fields).
+  # Deduplication: each unique command appears once, newest occurrence kept
+  # (fc -li iterates newest-first). Row layout: the event number is the
+  # first (prefix) field, never repeated inside the display; fields are
+  # joined with a single space (not TAB — a terminal would expand the TAB
+  # into a wide gap before the date).
   selected="$(
     {
-      # fc -li gives ordering, event numbers and the ISO8601 timestamp,
-      # but its command text is unsafe for multiline entries; the complete
-      # command comes from $history instead.
       fc -li -1 0 |
       while IFS=' ' read -r raw_event date time rest; do
-        # SHARE_HISTORY can display foreign events as "123*".
         event="${raw_event%\*}"
-
-        # Ignore continuation lines from fc output.
         [[ "$event" == <-> ]] || continue
         [[ "$date" == <->-<->-<-> ]] || continue
         [[ "$time" == <->:<-> ]] || continue
 
         (( ${+history[$event]} )) || continue
         command="${history[$event]}"
-
-        # Deduplicate by command so each unique command appears once, keeping
-        # the newest occurrence (fc -li iterates newest-first).
         if [[ -n "$ZSH_FZF_HISTORY_SEARCH_REMOVE_DUPLICATES" ]]; then
           (( ${+seen[$command]} )) && continue
           seen[$command]=1
         fi
-
-        # The event number is already the first (prefix) field of the row, so
-        # it must NOT be repeated inside the display.
         display=''
         if (( ZSH_FZF_HISTORY_SEARCH_DATES_IN_SEARCH )); then
-          display+="${date} ${time} "
+          zfz_color "$ZFZ_HISTORY_COLOR_DATE" "$date"
+          display+="$REPLY "
+          zfz_color "$ZFZ_HISTORY_COLOR_TIME" "$time"
+          display+="$REPLY "
         fi
-        display+="${command}"
-
-        # event-number display text<NUL>  (single space, not TAB — a terminal
-        # would expand the TAB into a wide gap before the date).
-        printf '%s\0' "${event} ${display}"
+        zfz_color "$ZFZ_HISTORY_COLOR_COMMAND" "$command"
+        display+="$REPLY"
+        zfz_color "$ZFZ_HISTORY_COLOR_EVENT" "$event"
+        printf '%s\0' "$REPLY ${display}"
       done
     } |
       fzf \
         ${=ZSH_FZF_HISTORY_SEARCH_FZF_ARGS} \
         ${=ZSH_FZF_HISTORY_SEARCH_FZF_EXTRA_ARGS} \
         --read0 \
+        --ansi \
         --bind "ctrl-y:execute-silent(printf %s '{}' | cut -d' ' -f4- | $zfz_copy_cmd)+abort" \
         "${query_args[@]}"
   )"
