@@ -13,7 +13,7 @@ jobs:
     name: syntax + load
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install zsh and shellcheck
         run: |
@@ -32,16 +32,32 @@ jobs:
       - name: Load as an Oh My Zsh plugin
         run: |
           stub=$(mktemp -d)
-          printf '#!/bin/sh\nexit 0\n' > "$stub/fzf"
+          counter="$stub/count"
+          printf '#!/bin/sh\nprintf x >> "%s"\nexit 0\n' "$counter" > "$stub/fzf"
           chmod +x "$stub/fzf"
           PATH="$stub:$PATH" zsh -f -c '
             source ./zsh-fzf-unified.plugin.zsh
             (( $+zfz_loaded )) || { print -u2 "plugin did not load"; exit 1 }
-            n=${#${(k)widgets[(I)zfz*]}}
-            (( n > 0 )) || { print -u2 "no ZLE widgets registered"; exit 1 }
+
+            for w in fzf_history_search zfz_up zfz_rg; do
+              (( ${+functions[$w]} )) || { print -u2 "widget function $w missing"; exit 1 }
+              (( ${+widgets[$w]} )) || { print -u2 "ZLE widget $w not registered"; exit 1 }
+            done
+
+            [[ $(bindkey -M emacs "^R") == *fzf_history_search* ]] ||
+              { print -u2 "Ctrl-R not bound to fzf_history_search"; exit 1 }
+            [[ $(bindkey -M emacs "^G") == *zfz_rg* ]] ||
+              { print -u2 "Ctrl-G not bound to zfz_rg"; exit 1 }
+            [[ $(bindkey -M vicmd "^R") == *fzf_history_search* ]] ||
+              { print -u2 "Ctrl-R not bound in vicmd"; exit 1 }
+
             source ./zsh-fzf-unified.plugin.zsh   # must be a no-op
-            (( ${#${(k)widgets[(I)zfz*]}} == n )) || {
-              print -u2 "re-source was not a no-op"; exit 1
-            }
-            print -r -- "widgets registered: $n"
+            print -r -- "ok: widgets + bindings intact"
           '
+
+          # The `fzf --zsh` shim is the one load-time side effect we can count:
+          # a second source must not invoke it again.
+          if [[ $(wc -c < "$counter") -ne 1 ]]; then
+            echo "re-source re-ran the fzf --zsh shim" >&2
+            exit 1
+          fi
