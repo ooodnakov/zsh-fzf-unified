@@ -16,10 +16,8 @@
 (( $+commands[fzf] )) || return 0
 
 # Re-sourcing (second keymap, manual `source`) must be a no-op.
-if (( ${+functions[zfz_loaded]} )); then
-  return 0
-fi
-zfz_loaded=1
+(( ${+zfz_loaded} )) && return 0
+typeset -g zfz_loaded=1
 
 # Plugin root. $0 is only the plugin file at load time; inside widgets/functions
 # it becomes the function name, so capture the directory here and reuse it.
