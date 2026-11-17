@@ -112,7 +112,9 @@ before `plugins=(...)` in `.zshrc`) — the plugin only fills unset variables.
 
 Ctrl-R column colors are SGR parameter strings (what goes between
 `ESC[` and `m`). Set them to `''` to leave a field uncolored; unset fields
-fall back to the defaults.
+fall back to the defaults. 256-color values need the full `38;5;N` form —
+a bare `N` outside 30–37/90–97 is an undefined parameter and silently
+renders as plain text.
 
 | Variable | Default | Field |
 |----------|---------|-------|
