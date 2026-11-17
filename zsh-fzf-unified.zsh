@@ -84,6 +84,7 @@ fzf_history_search() {
   local raw_event event date time rest command display
   local -A seen
   local -a query_args
+  local pad=0
 
   if (( $#BUFFER )); then
     query_args=(
@@ -116,15 +117,19 @@ fzf_history_search() {
   # fc continuation lines (non-numeric / non-date / non-time fields).
   # Deduplication: each unique command appears once, newest occurrence kept
   # (fc -li iterates newest-first). Row layout: the event number is the
-  # first (prefix) field, never repeated inside the display; fields are
-  # joined with a single space (not TAB — a terminal would expand the TAB
-  # into a wide gap before the date).
+  # first (prefix) field, right-aligned to the width of the widest event
+  # (fc lists newest-first, so the first valid row carries the widest one)
+  # so the date column lines up, never repeated inside the display; fields
+  # are joined with a single space (not TAB — a terminal would expand the
+  # TAB into a wide gap before the date). The alignment leading spaces are
+  # trimmed by the Ctrl-Y copy pipeline and the event parse below.
   selected="$(
     {
       fc -li -1 0 |
       while IFS=' ' read -r raw_event date time rest; do
         event="${raw_event%\*}"
         [[ "$event" == <-> ]] || continue
+        (( pad )) || pad=${#event}
         [[ "$date" == <->-<->-<-> ]] || continue
         [[ "$time" == <->:<-> ]] || continue
 
@@ -143,7 +148,7 @@ fzf_history_search() {
         fi
         zfz_color "$ZFZ_HISTORY_COLOR_COMMAND" "$command"
         display+="$REPLY"
-        zfz_color "$ZFZ_HISTORY_COLOR_EVENT" "$event"
+        zfz_color "$ZFZ_HISTORY_COLOR_EVENT" "${(r:$pad:)event}"
         printf '%s\0' "$REPLY ${display}"
       done
     } |
@@ -152,17 +157,18 @@ fzf_history_search() {
         ${=ZSH_FZF_HISTORY_SEARCH_FZF_EXTRA_ARGS} \
         --read0 \
         --ansi \
-        --bind "ctrl-y:execute-silent(printf %s '{}' | cut -d' ' -f4- | $zfz_copy_cmd)+abort" \
+        --bind "ctrl-y:execute-silent(printf %s '{}' | sed 's/^ *//' | cut -d' ' -f4- | $zfz_copy_cmd)+abort" \
         "${query_args[@]}"
   )"
 
   local ret=$?
 
   if [[ -n "$selected" ]]; then
-    # fzf returns "event-number date time command"; the event is the first
-    # space-delimited field. Let ZLE restore the original history event so
-    # multiline commands come back exactly.
-    selected_event="${selected%% *}"
+    # fzf --ansi returns the line with color codes stripped; the event
+    # field may carry right-alignment leading spaces — trim them BEFORE
+    # splitting, or the first-space split eats the whole number.
+    selected_event="${selected## ##}"
+    selected_event="${selected_event%% *}"
     if [[ "$selected_event" == <-> ]]; then
       zle vi-fetch-history -n "$selected_event"
       if [[ -n "$ZSH_FZF_HISTORY_SEARCH_END_OF_LINE" ]]; then
