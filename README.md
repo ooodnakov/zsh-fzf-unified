@@ -6,21 +6,27 @@ A single managed source of truth for fzf inside zsh. One plugin that owns:
   modern `fzf --zsh` shim (fzf ≥ 0.48). No manual location of the shell files.
 - **fzf history search** — Ctrl-R and the Up-arrow hybrid. Ported from
   `zsh-fzf-history-search`: multiline-safe via NUL-framed entries; event
-  numbers and ISO8601 dates shown; duplicates removed.
+  numbers and ISO8601 dates shown; deduplicated by command (newest kept);
+  Ctrl-Y copies the command to the clipboard.
+- **Ripgrep live search** — Ctrl-G searches file contents with `rg`, reloading
+  on every keystroke, previews the matched file centred on the line, and puts
+  `$EDITOR FILE +LINE` on the command line on Enter.
 - **fzf-tab** — vendored, pinned to `Aloxaf/fzf-tab@24105b1`, including all of
   its styling (directory/command/file previews, oooconf completions) that used
   to live in `.zshrc.d/20-completion.zsh`.
 - **Hybrid Up/Down arrows** — on a multiline buffer the arrows move the cursor
   between lines (history only at the boundary lines); on a single-line buffer
   Up opens the fzf history picker and Down walks history.
-- **Central `FZF_*` options** — e.g. `FZF_CTRL_R_OPTS=--bind 'enter:accept'`,
-  a Yazi-like content preview for Ctrl-T, and a directory preview for Alt-C.
-  The shared preview script handles dirs (git status + eza/tree/ls), symlinks,
-  images (kitten icat / chafa / imgcat), archives (7z), text (bat) and binaries
-  (xxd/od) — modeled after `junegunn/fzf`'s `bin/fzf-preview.sh`.
-- **fzf-tab completion previews** — in addition to file/dir/command previews,
-  `env`/`export` show the variable value, `unset` shows the function definition
-  or value, and `unalias` shows the alias definition.
+- **Central `FZF_*` options** — `FZF_DEFAULT_OPTS` (consistent visual flags),
+  `FZF_DEFAULT_COMMAND` (fd/rg, gitignore-aware), a Yazi-like content preview
+  for Ctrl-T, and a directory preview for Alt-C. The shared preview script
+  handles dirs (git status + eza/tree/ls), symlinks, images (kitten icat /
+  chafa / imgcat), archives (7z), text (bat) and binaries (xxd/od) — modeled
+  after `junegunn/fzf`'s `bin/fzf-preview.sh`.
+- **fzf-tab completion previews** — file/dir/command previews plus:
+  `env`/`export` show the variable value, `unset` the function definition or
+  value, `unalias` the alias definition, `kill` the process, `ssh` the host,
+  and `git-checkout`/`git-diff`/`git-show`/`git-log` the referenced commit.
 
 ## Install (Oh My Zsh)
 

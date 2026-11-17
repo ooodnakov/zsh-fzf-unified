@@ -65,6 +65,19 @@ fzf_history_search() {
     )
   fi
 
+  # Ctrl-Y copies the command (everything after the "event<TAB>date time "
+  # prefix) to the clipboard and closes the picker without inserting it.
+  local zfz_copy_cmd
+  if [[ "$OSTYPE" == darwin* ]]; then
+    zfz_copy_cmd='pbcopy'
+  elif (( $+commands[xclip] )); then
+    zfz_copy_cmd='xclip -selection clipboard'
+  elif (( $+commands[wl-copy] )); then
+    zfz_copy_cmd='wl-copy'
+  else
+    zfz_copy_cmd='cat >/dev/null'
+  fi
+
   selected="$(
     {
       # fc -li gives ordering, event numbers and the ISO8601 timestamp,
@@ -83,20 +96,20 @@ fzf_history_search() {
         (( ${+history[$event]} )) || continue
         command="${history[$event]}"
 
-        display=''
-        if (( ZSH_FZF_HISTORY_SEARCH_EVENT_NUMBERS )); then
-          display+="${event} "
+        # Deduplicate by command so each unique command appears once, keeping
+        # the newest occurrence (fc -li iterates newest-first).
+        if [[ -n "$ZSH_FZF_HISTORY_SEARCH_REMOVE_DUPLICATES" ]]; then
+          (( ${+seen[$command]} )) && continue
+          seen[$command]=1
         fi
+
+        # The event number is already the first (prefix) field of the row, so
+        # it must NOT be repeated inside the display.
+        display=''
         if (( ZSH_FZF_HISTORY_SEARCH_DATES_IN_SEARCH )); then
           display+="${date} ${time} "
         fi
         display+="${command}"
-
-        # Deduplicate exactly what would be displayed/searched.
-        if [[ -n "$ZSH_FZF_HISTORY_SEARCH_REMOVE_DUPLICATES" ]]; then
-          (( ${+seen[$display]} )) && continue
-          seen[$display]=1
-        fi
 
         # event-number<TAB>display text<NUL>
         printf '%s\0' "${event}"$'\t'"${display}"
@@ -106,6 +119,7 @@ fzf_history_search() {
         ${=ZSH_FZF_HISTORY_SEARCH_FZF_ARGS} \
         ${=ZSH_FZF_HISTORY_SEARCH_FZF_EXTRA_ARGS} \
         --read0 \
+        --bind "ctrl-y:execute-silent(printf %s '{}' | awk -F'\t' '{print \$2}' | cut -d' ' -f3- | $zfz_copy_cmd)+abort" \
         "${query_args[@]}"
   )"
 
@@ -230,6 +244,21 @@ zstyle ':fzf-tab:complete:unset:*' fzf-preview '
   fi'
 zstyle ':fzf-tab:complete:unalias:*' fzf-preview 'alias "$word"'
 
+# Process preview for kill/killall/pkill (numeric PID -> ps, name -> pgrep).
+zstyle ':fzf-tab:complete:(kill|killall|pkill):*' fzf-preview '
+  if [[ $word =~ ^[0-9]+$ ]]; then
+    ps -p "$word" -o pid,ppid,%cpu,%mem,user,comm --no-headers 2>/dev/null
+  else
+    pgrep -af "$word" 2>/dev/null | head -20
+  fi'
+
+# SSH host preview: resolved config, else DNS.
+zstyle ':fzf-tab:complete:ssh:*' fzf-preview 'ssh -G "$word" 2>/dev/null | grep -Ei "^(hostname|user|port|identityfile|proxyjump)" || dig +short "$word" 2>/dev/null | head -5'
+
+# Git ref preview for checkout/diff/show/log.
+zstyle ':fzf-tab:complete:git-checkout:*' fzf-preview 'git show --color=always --stat --oneline "$word" 2>/dev/null | head -60'
+zstyle ':fzf-tab:complete:git-(diff|show|log):*' fzf-preview 'git show --color=always "$word" 2>/dev/null | head -200'
+
 # Generic fallback preview for all files and folders.
 zstyle ':fzf-tab:complete:*' fzf-preview '
   # DIRECTORY PREVIEWS
@@ -289,3 +318,56 @@ export FZF_ALT_C_OPTS="--preview '${0:A:h}/zsh-fzf-unified-preview {}' \
   --preview-window 'down,60%,border-top' \
   --walker-skip '.git,node_modules,target,dist,build' \
   --bind 'ctrl-/:change-preview-window(down,60%,border-top|hidden|)'"
+
+# Consistent look across every fzf instance (Ctrl-T, Ctrl-R, Alt-C, fzf-tab,
+# and ad-hoc fzf). Only visual flags — layout/height are left to each widget.
+export FZF_DEFAULT_OPTS="--info inline --border --pointer '▍' --marker '▍'"
+
+# Fast, gitignore-respecting file source for file widgets (Ctrl-T).
+if (( $+commands[fd] )); then
+  export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
+elif (( $+commands[rg] )); then
+  export FZF_DEFAULT_COMMAND='rg --files --hidden --glob "!.git/*"'
+fi
+
+# ---------------------------------------------------------------------
+# 6. Ripgrep live search (Ctrl-G).
+#
+# Search file contents with rg, live-reloading on every keystroke, and
+# preview the matched file centred on the matching line (reusing the shared
+# preview script's FILE:LINENO support). Enter puts "$EDITOR FILE +LINE" on
+# the command line.
+# ---------------------------------------------------------------------
+zfz_rg() {
+  local RG_PREFIX INITIAL_QUERY rg_preview sel ret file line
+  RG_PREFIX="${FZF_RG_COMMAND:-rg --column --line-number --no-heading --color=always --smart-case --hidden --glob '!.git/*'}"
+  INITIAL_QUERY="${LBUFFER//$'\n'/ }"
+  rg_preview="${0:A:h}/zsh-fzf-unified-preview"
+
+  sel="$(
+    fzf --ansi --disabled --query "$INITIAL_QUERY" \
+      --bind "start:reload:$RG_PREFIX {q} || true" \
+      --bind "change:reload:sleep 0.1; $RG_PREFIX {q} || true" \
+      --delimiter : \
+      --preview "$rg_preview {1}:{2}" \
+      --preview-window 'up,60%,border-bottom,+{2}+3/3,~3' \
+      --layout reverse \
+      --prompt 'rg> ' \
+      --header 'ENTER: open in $EDITOR at line'
+  )"
+  ret=$?
+
+  if [[ -n "$sel" ]]; then
+    file="${sel%%:*}"
+    line="${${sel#*:}%%:*}"
+    BUFFER="${EDITOR:-vim} $file +${line:-1}"
+    CURSOR=${#BUFFER}
+  fi
+  zle reset-prompt
+  return $ret
+}
+zle -N zfz_rg
+for zfz_kmap in emacs viins vicmd; do
+  bindkey -M "$zfz_kmap" '^G' zfz_rg
+done
+unset zfz_kmap
