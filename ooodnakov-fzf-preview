@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Yazi-like preview for fzf file widgets (Ctrl-T / FZF_CTRL_T_OPTS).
+# Receives the selected path via "$1" (fzf fills it from "{}").
+#
+#   * directory -> list contents (eza, else coloured ls)
+#   * image     -> chafa (WezTerm/kitty inline images)
+#   * archive   -> 7z l
+#   * other     -> bat (fallback cat), capped at 500 lines
+set -u
+
+path="${1:-}"
+[[ -n "$path" ]] || exit 0
+
+if [[ -d "$path" ]]; then
+  if command -v eza >/dev/null 2>&1; then
+    eza -1 --color=always --icons=always "$path"
+  elif [[ "$(uname)" == "Darwin" ]]; then
+    ls -1G "$path"
+  else
+    ls -1 --color=always "$path"
+  fi
+  exit 0
+fi
+
+if [[ -f "$path" ]]; then
+  mime="$(file --mime-type -b "$path" 2>/dev/null)"
+
+  case "$mime" in
+    image/*)
+      if command -v chafa >/dev/null 2>&1; then
+        chafa "$path"
+      else
+        printf 'Image: %s\n(chafa not installed for preview)\n' "$(basename "$path")"
+      fi
+      ;;
+    application/zip|application/x-tar|application/x-bzip2|application/x-gzip|application/gzip|application/x-7z-compressed|application/x-rar)
+      if command -v 7z >/dev/null 2>&1; then
+        7z l "$path" 2>/dev/null
+      else
+        printf 'Archive: %s\n(7z not installed for preview)\n' "$(basename "$path")"
+      fi
+      ;;
+    *)
+      if command -v bat >/dev/null 2>&1; then
+        bat --style=numbers --color=always --line-range :500 "$path" 2>/dev/null
+      else
+        cat "$path" 2>/dev/null
+      fi
+      ;;
+  esac
+fi

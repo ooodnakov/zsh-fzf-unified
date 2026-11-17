@@ -274,7 +274,7 @@ zstyle ':fzf-tab:complete:*' fzf-preview '
         ;;
 
       # ARCHIVE PREVIEWS (7-Zip Only)
-      application/zip|application/x-tar|application/x-bzip2|application/x-gzip|application/x-7z-compressed|application/x-rar)
+      application/zip|application/x-tar|application/x-bzip2|application/x-gzip|application/gzip|application/x-7z-compressed|application/x-rar)
         if (( $+commands[7z] )); then
           7z l "$realpath" 2>/dev/null
         else
@@ -298,3 +298,11 @@ zstyle ':fzf-tab:complete:*' fzf-preview '
 
 # Safe safeguard for the fzf history picker: Enter accepts, no run.
 export FZF_CTRL_R_OPTS="--bind 'enter:accept'"
+
+# ---------------------------------------------------------------------
+# 5. Central FZF_* options.
+# ---------------------------------------------------------------------
+# Yazi-like content preview for the Ctrl-T file widget. The preview script
+# ships with the plugin (this file's directory) and handles directories,
+# images (chafa), archives (7z) and text (bat/cat).
+export FZF_CTRL_T_OPTS="--preview '${0:A:h}/ooodnakov-fzf-preview {}'"
