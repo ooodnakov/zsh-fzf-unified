@@ -28,6 +28,7 @@ keybindings.
 | `Ctrl-T` | File/dir picker with a Yazi-like content preview, toggled/resized with `Ctrl-/` |
 | `Alt-C` | `cd` picker with a directory preview (git status + contents) |
 | `Ctrl-G` | ripgrep live search: reloads on every keystroke, previews the match centred on its line, `Enter` puts `$EDITOR FILE +LINE` on the command line |
+| `Ctrl-F` | fd live finder: narrows files/directories by name with every keystroke (query goes to fd, gitignore respected), previews each hit, `Enter` pastes the path at the cursor |
 | `Tab` | fzf-tab (vendored, pinned) with per-context previews |
 | `<` / `>` | fzf-tab group switching |
 
@@ -149,6 +150,7 @@ A theme (e.g. a dotfiles repo) can own these by setting the variables in a
 | `FZF_ALT_C_OPTS` | Alt-C: bottom preview (60%), same `Ctrl-/` cycle |
 | `FZF_CTRL_R_OPTS` | `--bind 'enter:accept'` safety default |
 | `FZF_RG_COMMAND` | the ripgrep command Ctrl-G reloads (default: columnized, line-numbered, smart-case, gitignore-respecting) |
+| `FZF_FD_COMMAND` | the command Ctrl-F reloads (default: `fd --type file --type directory --hidden --follow --exclude .git`; live `rg --files` fallback when fd is missing) |
 
 ## Layout
 

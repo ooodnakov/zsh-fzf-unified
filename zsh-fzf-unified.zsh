@@ -411,3 +411,55 @@ for zfz_kmap in emacs viins vicmd; do
   bindkey -M "$zfz_kmap" '^G' zfz_rg
 done
 unset zfz_kmap
+
+# ---------------------------------------------------------------------
+# 7. Live fd search (Ctrl-F).
+#
+# Find files/directories by NAME with fd, live-reloading on every
+# keystroke (the Ctrl-T widget lists everything and filters client-side;
+# this one passes the query to fd, which respects gitignore and is faster
+# on large repos). Enter pastes the picked path at the cursor. Falls back
+# to a live `rg --files` when fd is missing; without either, the widget
+# is unbound.
+# ---------------------------------------------------------------------
+if [[ -n "${FZF_FD_COMMAND:-}" ]]; then
+  zfz_fd_command="$FZF_FD_COMMAND"
+elif (( $+commands[fd] )); then
+  zfz_fd_command='fd --type file --type directory --hidden --follow --exclude .git'
+elif (( $+commands[rg] )); then
+  zfz_fd_command='rg --files --hidden --glob "!.git/*"'
+fi
+
+if [[ -n "${zfz_fd_command:-}" ]]; then
+  zfz_fd() {
+    local INITIAL_QUERY sel ret quoted
+    INITIAL_QUERY="${LBUFFER//$'\n'/ }"
+
+    sel="$(
+      fzf --ansi --disabled --query "$INITIAL_QUERY" \
+        --bind "start:reload:$zfz_fd_command {q} || true" \
+        --bind "change:reload:sleep 0.1; $zfz_fd_command {q} || true" \
+        --preview "$zfz_home/zsh-fzf-unified-preview {}" \
+        --preview-window 'right,60%,border-left' \
+        --bind 'ctrl-/:change-preview-window(right,60%,border-left|hidden|)' \
+        --walker-skip '.git,node_modules,target,dist,build' \
+        --layout reverse \
+        --prompt 'fd> ' \
+        --header 'ENTER: paste path at cursor'
+    )"
+    ret=$?
+
+    if [[ -n "$sel" ]]; then
+      quoted=${(q)sel}
+      BUFFER="${LBUFFER}${quoted}${RBUFFER}"
+      CURSOR=$(( ${#LBUFFER} + ${#quoted} ))
+    fi
+    zle reset-prompt
+    return $ret
+  }
+  zle -N zfz_fd
+  for zfz_kmap in emacs viins vicmd; do
+    bindkey -M "$zfz_kmap" '^F' zfz_fd
+  done
+  unset zfz_kmap
+fi
