@@ -5,3 +5,8 @@
 # Editors
 .DS_Store
 *.swp
+
+# docs site build
+/site/node_modules
+/site/.vitepress/cache
+/site/.vitepress/dist
