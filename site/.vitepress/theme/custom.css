@@ -35,11 +35,6 @@ html.dark {
   --vp-home-hero-name-background: linear-gradient(135deg, #22d3ee 0%, #f59e0b 100%);
 }
 
-.vp-doc table {
-  display: table;
-  width: 100%;
-}
-
 .vp-doc th,
 .vp-doc td {
   vertical-align: top;
