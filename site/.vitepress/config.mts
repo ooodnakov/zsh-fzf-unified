@@ -9,6 +9,15 @@ export default defineConfig({
 
   head: [
     ['link', { rel: 'icon', href: '/zsh-fzf-unified/logo.svg', type: 'image/svg+xml' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+    [
+      'link',
+      {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Fira+Code:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap',
+      },
+    ],
     [
       'script',
       { id: 'check-color-theme' },

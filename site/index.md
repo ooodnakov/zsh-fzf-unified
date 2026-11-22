@@ -5,9 +5,6 @@ hero:
   name: zsh-fzf-unified
   text: One plugin for every fzf surface in zsh.
   tagline: Shell integration (Ctrl-T / Alt-C), multiline-safe history search (Ctrl-R), live ripgrep search (Ctrl-G), vendored fzf-tab completion, and hybrid Up/Down arrows — with defined precedence.
-  image:
-    src: /logo.svg
-    alt: zsh-fzf-unified
   actions:
     - theme: brand
       text: Get Started

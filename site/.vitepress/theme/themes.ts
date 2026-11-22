@@ -30,8 +30,8 @@ export const THEMES: readonly ThemeMeta[] = [
     name: 'Default',
     labelRu: 'По умолчанию',
     swatches: {
-      light: ['#ffffff', '#f6f6f7', '#0891b2', '#d97706'],
-      dark: ['#0b1120', '#131c2e', '#22d3ee', '#f59e0b'],
+      light: ['#f7f8fa', '#eef0f4', '#0e7490', '#b45309'],
+      dark: ['#0c0f14', '#151b26', '#22d3ee', '#f59e0b'],
     },
   },
   {
